@@ -3,6 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 import DnnLib
+#Este codigo es un test con optimizadores con el dataset de test
+#No es el usado para entrenar
 
 # =============================
 # Mapeo de activaciones
