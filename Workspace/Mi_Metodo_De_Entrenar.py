@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 import DnnLib
+import argparse  # ← Añadimos esta importación
 
 # =============================
 # Mapeo de activaciones
@@ -170,22 +171,57 @@ def save_model_to_json(layers, path, input_shape=[28, 28], scale=255.0):
 
 
 # =============================
-# Main SIMPLIFICADO
+# Main CON ARGPARSE
 # =============================
 if __name__ == "__main__":
-    dataset_path = "/workspace/mnist_train.npz"
-    model_path = "/workspace/Red_simple.json"
+    # Configurar parser de argumentos
+    parser = argparse.ArgumentParser(description="Train Mnist Model.")
+    parser.add_argument('--epochs', type=int, default=10, help="Numero de epocas")
+    parser.add_argument('--batchsize', type=int, default=64, help="Tamano de batch")
+    parser.add_argument('--model', default="/workspace/modelo.json", help="Ruta de modelo")
+    parser.add_argument('--dataset', default="/workspace/mnist_train.npz", help="Ruta de dataset")
+    parser.add_argument('--modelgen', default="/workspace/modeloGEN.json", help="Ruta de modelo generado")
+    parser.add_argument('--lr', type=float, default=0.001, help="Learning rate")
+    parser.add_argument('--optimizer', default="adam", choices=["sgd", "adam", "rmsprop"], 
+                       help="Optimizador a usar")
+
+    args = parser.parse_args()
+
+    # Mostrar configuración
+    print("⚙️  Configuración de entrenamiento:")
+    print(f"   - Épocas: {args.epochs}")
+    print(f"   - Batch size: {args.batchsize}")
+    print(f"   - Learning rate: {args.lr}")
+    print(f"   - Optimizador: {args.optimizer}")
+    print(f"   - Modelo entrada: {args.model}")
+    print(f"   - Dataset: {args.dataset}")
+    print(f"   - Modelo salida: {args.modelgen}")
+    print("-" * 50)
 
     # Cargar red
-    layers, scale, input_shape = cargarjson(model_path)
-    input_size = int(np.prod(input_shape))
-    print(f"✅ Red cargada: {len(layers)} capas")
+    try:
+        layers, scale, input_shape = cargarjson(args.model)
+        input_size = int(np.prod(input_shape))
+        print(f"✅ Red cargada: {len(layers)} capas, input_size={input_size}")
+        
+        # Mostrar información de la red
+        for i, layer in enumerate(layers):
+            act_type = "Softmax" if layer.activation_type == DnnLib.ActivationType.SOFTMAX else "Otra"
+            print(f"  Capa {i}: {layer.weights.shape[1]} -> {layer.weights.shape[0]} - Activación: {act_type}")
+            
+    except Exception as e:
+        print(f"❌ Error cargando el modelo: {e}")
+        exit(1)
 
     # Dataset
-    data = np.load(dataset_path)
-    images = data["images"]
-    labels = data["labels"]
-    print(f"✅ Dataset: {images.shape[0]} muestras")
+    try:
+        data = np.load(args.dataset)
+        images = data["images"]
+        labels = data["labels"]
+        print(f"✅ Dataset cargado: {images.shape[0]} muestras")
+    except Exception as e:
+        print(f"❌ Error cargando dataset: {e}")
+        exit(1)
 
     # Preprocesamiento
     N = images.shape[0]
@@ -196,16 +232,22 @@ if __name__ == "__main__":
     Y = np.zeros((N, K), dtype=np.float64)
     Y[np.arange(N), labels] = 1.0
 
-    print(f"📊 Datos: X={X.shape}, Y={Y.shape}")
+    print(f"📊 Datos preparados: X={X.shape}, Y={Y.shape}")
 
     # Entrenar
-    trained_layers = train_network(
-        layers, X, Y,
-        optimizer_name="adam",
-        lr=0.001,
-        epochs=10,
-        batch_size=128
-    )
+    try:
+        trained_layers = train_network(
+            layers, X, Y,
+            optimizer_name=args.optimizer,
+            lr=args.lr,
+            epochs=args.epochs,
+            batch_size=args.batchsize
+        )
+    except Exception as e:
+        print(f"❌ Error durante el entrenamiento: {e}")
+        import traceback
+        traceback.print_exc()
+        exit(1)
 
     # Evaluación
     output_final = X
@@ -217,4 +259,17 @@ if __name__ == "__main__":
     print(f"\n✅ Precisión final: {accuracy*100:.2f}%")
 
     # Guardar modelo
-    save_model_to_json(trained_layers, "/workspace/Red_simple_AV1.json", input_shape, scale)
+    try:
+        save_model_to_json(trained_layers, args.modelgen, input_shape, scale)
+        print("🎉 Entrenamiento completado exitosamente!")
+    except Exception as e:
+        print(f"❌ Error guardando modelo: {e}")
+        import traceback
+        traceback.print_exc()
+
+    # Estadísticas finales
+    print("\n📈 Estadísticas finales:")
+    print(f"   - Precisión: {accuracy*100:.2f}%")
+    print(f"   - Número de parámetros: {sum(layer.weights.size + layer.bias.size for layer in trained_layers):,}")
+    print(f"   - Épocas completadas: {args.epochs}")
+    print(f"   - Modelo guardado en: {args.modelgen}")
