@@ -57,7 +57,7 @@ def create_random_model():
 if __name__ == "__main__":
     model = create_random_model()
 
-    with open("Red_Neuro.json", "w") as f:
+    with open("workspace/Red_Neuro2.json", "w") as f:
         json.dump(model, f, indent=2)
 
     print("✅ Modelo inicializado aleatoriamente guardado en Red_simple.json")
